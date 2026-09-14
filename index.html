@@ -42,7 +42,7 @@
         input { width: 100%; border: 1px solid #ded3c9; background: #fff; border-radius: 10px; padding: 13px 14px; font-size: 15px; color: #3d3028; outline: none; }
         input:focus { border-color: #9a7050; }
         .quantity { display: flex; align-items: center; gap: 10px; }
-        .quantity button { width: 42px; height: 42px; border: none; border-radius: 99px; background: #eee4da; color: #5d4739; font-size: 20px; cursor: pointer; }
+        .quantity button { width: 42px; height: 42px; border: none; border-radius: 9px; background: #eee4da; color: #5d4739; font-size: 20px; cursor: pointer; }
         .quantity input { text-align: center; }
         .order-button { width: 100%; border: none; border-radius: 12px; padding: 15px; background: #795237; color: white; font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .order-button:hover { background: #60412f; }
@@ -325,7 +325,7 @@
         }
     }
 
-    // 주문 확정 및 구글시트 전송 (CORS 우회 및 확실한 팝업 호출)
+    // 주문 확정 및 구글시트 전송 (URLSearchParams 호환 방식 적용)
     async function confirmOrder() {
         if (!pendingOrder) return;
 
@@ -334,17 +334,24 @@
         confirmBtn.textContent = "전송 중...";
 
         try {
-            // POST 방식 통신 (CORS 제한을 우회하기 위해 mode: 'no-cors' 사용)
+            // Google Apps Script 수신에 최적화된 URLSearchParams 방식
+            const params = new URLSearchParams();
+            params.append("data", JSON.stringify(pendingOrder));
+            params.append("name", pendingOrder.name);
+            params.append("drink", pendingOrder.drink);
+            params.append("quantity", pendingOrder.quantity);
+            params.append("total", pendingOrder.total);
+
             await fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 mode: "no-cors",
                 headers: {
-                    "Content-Type": "text/plain"
+                    "Content-Type": "application/x-www-form-urlencoded"
                 },
-                body: JSON.stringify(pendingOrder)
+                body: params.toString()
             });
 
-            // 전송 완료 시 UI 처리
+            // 전송 완료 시 성공 처리
             orders.push(pendingOrder);
             saveOrders();
             renderOrders();
