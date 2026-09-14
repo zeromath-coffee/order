@@ -321,49 +321,68 @@ function closeModalByBackground(event) {
         closeModal();
     }
 }
-
-// 주문 확정 및 구글시트 전송
-async function confirmOrder() {
+// 주문 확정 및 구글시트 전송 (JSONP 방식 적용)
+function confirmOrder() {
     if (!pendingOrder) return;
 
     const confirmBtn = document.querySelector(".confirm-button");
-
     confirmBtn.disabled = true;
     confirmBtn.textContent = "전송 중...";
 
-    try {
-        // mode: "no-cors" 설정으로 브라우저의 CORS 응답 차단을 회피합니다.
-        await fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: {
-                "Content-Type": "text/plain;charset=utf-8"
-            },
-            body: JSON.stringify(pendingOrder)
-        });
-
-        // 데이터 전송에 실패하지 않았다면 정상 접수 처리
-        orders.push(pendingOrder);
-
-        saveOrders();
-        renderOrders();
-
-        closeModal();
-        showSuccess("주문이 성공적으로 접수되었습니다! ☕");
-
-        resetForm();
-
-    } catch (error) {
-        console.error("전송 오류:", error);
-
-        // 진짜 네트워크 연결 실패 시에만 '주문 마감' 팝업 표시
+    // 전송 실패 방지를 위한 타임아웃 설정 (10초)
+    const timeout = setTimeout(() => {
+        cleanup();
         showOrderClosedPopup();
+    }, 10000);
 
-    } finally {
+    // 전송 스크립트 태그 및 콜백 함수 생성
+    const callbackName = "gasCallback_" + Date.now();
+    const script = document.createElement("script");
+
+    const cleanup = () => {
+        clearTimeout(timeout);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
         confirmBtn.disabled = false;
         confirmBtn.textContent = "주문 확정";
-    }
+    };
+
+    // Google Apps Script 응답 처리 콜백
+    window[callbackName] = function(response) {
+        cleanup();
+
+        if (response && (response.result === "success" || response.status === "success")) {
+            // 주문 성공 처리
+            orders.push(pendingOrder);
+            saveOrders();
+            renderOrders();
+
+            closeModal();
+            showSuccess("주문이 성공적으로 접수되었습니다! ☕");
+            resetForm();
+        } else {
+            // 구글 시트 저장 실패 또는 주문 마감일 때만 마감 팝업 출력
+            closeModal();
+            showOrderClosedPopup();
+        }
+    };
+
+    script.onerror = function() {
+        cleanup();
+        closeModal();
+        showOrderClosedPopup();
+    };
+
+    // 데이터 파라미터화 및 전송
+    const params = new URLSearchParams({
+        callback: callbackName,
+        data: JSON.stringify(pendingOrder)
+    });
+
+    script.src = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
+    document.body.appendChild(script);
 }
+
 // 주문 마감 팝업 열기
 function showOrderClosedPopup() {
     const modal = document.getElementById("orderClosedModal");
