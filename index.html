@@ -325,7 +325,7 @@
         }
     }
 
-    // 주문 확정 및 구글시트 전송 (JSONP 방식)
+    // 주문 확정 및 구글시트 전송 (응답 보장 로직 강화)
     function confirmOrder() {
         if (!pendingOrder) return;
 
@@ -333,14 +333,14 @@
         confirmBtn.disabled = true;
         confirmBtn.textContent = "전송 중...";
 
+        const callbackName = "gasCallback_" + Date.now();
+        const script = document.createElement("script");
+
         const timeout = setTimeout(() => {
             cleanup();
             closeModal();
-            showOrderClosedPopup("응답 시간이 초과되었습니다. 다시 시도해주세요.");
-        }, 10000);
-
-        const callbackName = "gasCallback_" + Date.now();
-        const script = document.createElement("script");
+            showOrderClosedPopup("전송 시간이 초과되었습니다. 시트에 등록되었는지 확인해 주세요.");
+        }, 12000);
 
         const cleanup = () => {
             clearTimeout(timeout);
@@ -350,20 +350,22 @@
             confirmBtn.textContent = "주문 확정";
         };
 
+        // GAS 콜백 받기
         window[callbackName] = function(response) {
             cleanup();
             closeModal();
 
+            // 응답 결과 판단 (result 또는 status 체크)
             if (response && (response.result === "success" || response.status === "success")) {
                 orders.push(pendingOrder);
                 saveOrders();
                 renderOrders();
                 
-                // 성공 팝업 출력
-                showOrderSuccessPopup(response.message || "주문이 성공적으로 접수되었습니다! ☕");
+                // 성공 팝업 강제 출력
+                const msg = response.message || "주문이 성공적으로 접수되었습니다! ☕";
+                showOrderSuccessPopup(msg);
                 resetForm();
             } else {
-                // 실패/마감 팝업 출력
                 const msg = (response && response.message) ? response.message : "현재 주문을 접수할 수 없습니다.";
                 showOrderClosedPopup(msg);
             }
@@ -384,37 +386,44 @@
         document.body.appendChild(script);
     }
 
-    // 주문 성공 팝업 열기
+    // 주문 성공 팝업 제어
     function showOrderSuccessPopup(message) {
-        if (message) {
-            document.getElementById("successModalMessage").innerText = message;
-        }
         const modal = document.getElementById("orderSuccessModal");
-        modal.classList.add("show");
-        document.body.style.overflow = "hidden";
+        if (modal) {
+            if (message) {
+                document.getElementById("successModalMessage").innerText = message;
+            }
+            modal.classList.add("show");
+            document.body.style.overflow = "hidden";
+        } else {
+            // 성공 팝업 HTML 요소가 없을 경우 기본 alert로 보완
+            alert(message || "주문이 완료되었습니다!");
+        }
     }
 
-    // 주문 성공 팝업 닫기
     function closeOrderSuccessPopup() {
         const modal = document.getElementById("orderSuccessModal");
-        modal.classList.remove("show");
+        if (modal) modal.classList.remove("show");
         document.body.style.overflow = "";
     }
 
-    // 주문 마감/실패 팝업 열기
+    // 주문 실패/마감 팝업 제어
     function showOrderClosedPopup(message) {
-        if (message) {
-            document.getElementById("closedModalMessage").innerText = message;
-        }
         const modal = document.getElementById("orderClosedModal");
-        modal.classList.add("show");
-        document.body.style.overflow = "hidden";
+        if (modal) {
+            if (message) {
+                document.getElementById("closedModalMessage").innerText = message;
+            }
+            modal.classList.add("show");
+            document.body.style.overflow = "hidden";
+        } else {
+            alert(message || "주문이 실패했습니다.");
+        }
     }
 
-    // 주문 마감/실패 팝업 닫기
     function closeOrderClosedPopup() {
         const modal = document.getElementById("orderClosedModal");
-        modal.classList.remove("show");
+        if (modal) modal.classList.remove("show");
         document.body.style.overflow = "";
     }
 
@@ -481,14 +490,18 @@
 
     function showError(msg) {
         const el = document.getElementById("error");
-        el.textContent = msg;
-        el.style.display = "block";
-        setTimeout(() => { el.style.display = "none"; }, 5000);
+        if (el) {
+            el.textContent = msg;
+            el.style.display = "block";
+            setTimeout(() => { el.style.display = "none"; }, 5000);
+        }
     }
 
     function hideMessage() {
-        document.getElementById("success").style.display = "none";
-        document.getElementById("error").style.display = "none";
+        const succ = document.getElementById("success");
+        const err = document.getElementById("error");
+        if (succ) succ.style.display = "none";
+        if (err) err.style.display = "none";
     }
 
     function escapeHtml(text) {
@@ -505,5 +518,6 @@
         }
     });
 </script>
+
 </body>
 </html>
