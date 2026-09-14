@@ -217,22 +217,8 @@
     </div>
 </div>
 
-<!-- 구글시트 저장 실패 시 표시되는 팝업 -->
-<div id="orderClosedModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="closedModalTitle">
-    <div class="modal-content">
-        <h2 id="closedModalTitle" class="modal-title">주문 마감</h2>
-        <p class="modal-subtitle">
-            현재 주문을 접수할 수 없습니다.<br>
-            잠시 후 다시 시도해 주세요.
-        </p>
-        <div class="modal-actions">
-            <button type="button" class="confirm-button" onclick="closeOrderClosedPopup()">확인</button>
-        </div>
-    </div>
-</div>
-
 <script>
-// 1. 발급받은 Google Apps Script URL
+    // 1. 발급받은 Google Apps Script URL (큰따옴표 감싸기 필수)
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHUjbawTjYyh66lYw5iLNy8SaZ6vD6fnq2455zWsigH5ZUDXftGTPh73gbyJUJXX_nZw/exec";
 
 let selectedDrink = "";
@@ -258,7 +244,8 @@ function selectDrink(name, price, element) {
 
     element.classList.add("selected");
 
-    document.getElementById("selectedDrink").value = `${name} (${price.toLocaleString()}원)`;
+    document.getElementById("selectedDrink").value =
+        `${name} (${price.toLocaleString()}원)`;
 }
 
 // 수량 변경
@@ -294,13 +281,20 @@ function submitOrder() {
         quantity: quantity,
         price: selectedPrice,
         total: selectedPrice * quantity,
-        time: new Date().toLocaleTimeString("ko-KR", { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleString("ko-KR")
     };
 
-    document.getElementById("confirmName").textContent = pendingOrder.name;
-    document.getElementById("confirmDrink").textContent = pendingOrder.drink;
-    document.getElementById("confirmQuantity").textContent = pendingOrder.quantity + "잔";
-    document.getElementById("confirmTotal").textContent = pendingOrder.total.toLocaleString() + "원";
+    document.getElementById("confirmName").textContent =
+        pendingOrder.name;
+
+    document.getElementById("confirmDrink").textContent =
+        pendingOrder.drink;
+
+    document.getElementById("confirmQuantity").textContent =
+        pendingOrder.quantity + "잔";
+
+    document.getElementById("confirmTotal").textContent =
+        pendingOrder.total.toLocaleString() + "원";
 
     openModal();
 }
@@ -308,6 +302,7 @@ function submitOrder() {
 // 주문 확인 모달 열기
 function openModal() {
     const modal = document.getElementById("orderModal");
+
     modal.classList.add("show");
     document.body.style.overflow = "hidden";
 }
@@ -315,6 +310,7 @@ function openModal() {
 // 주문 확인 모달 닫기
 function closeModal() {
     const modal = document.getElementById("orderModal");
+
     modal.classList.remove("show");
     document.body.style.overflow = "";
 }
@@ -331,6 +327,7 @@ async function confirmOrder() {
     if (!pendingOrder) return;
 
     const confirmBtn = document.querySelector(".confirm-button");
+
     confirmBtn.disabled = true;
     confirmBtn.textContent = "전송 중...";
 
@@ -349,11 +346,16 @@ async function confirmOrder() {
 
         const result = await response.json();
 
+        // 구글시트 저장 실패
         if (result.result !== "success") {
-            throw new Error(result.error || result.message || "주문 저장 실패");
+            throw new Error(
+                result.error ||
+                result.message ||
+                "주문 저장 실패"
+            );
         }
 
-        // 구글시트 저장 성공 시 화면 목록에 추가
+        // 구글시트 저장 성공 시에만 홈페이지에 주문 추가
         orders.push(pendingOrder);
 
         saveOrders();
@@ -361,11 +363,15 @@ async function confirmOrder() {
 
         closeModal();
         showSuccess("주문이 성공적으로 접수되었습니다! ☕");
+
         resetForm();
 
     } catch (error) {
         console.error("전송 오류:", error);
+
+        // 주문 저장 실패 시 '주문 마감' 팝업 표시
         showOrderClosedPopup();
+
     } finally {
         confirmBtn.disabled = false;
         confirmBtn.textContent = "주문 확정";
@@ -375,6 +381,7 @@ async function confirmOrder() {
 // 주문 마감 팝업 열기
 function showOrderClosedPopup() {
     const modal = document.getElementById("orderClosedModal");
+
     modal.classList.add("show");
     document.body.style.overflow = "hidden";
 }
@@ -382,6 +389,7 @@ function showOrderClosedPopup() {
 // 주문 마감 팝업 닫기
 function closeOrderClosedPopup() {
     const modal = document.getElementById("orderClosedModal");
+
     modal.classList.remove("show");
     document.body.style.overflow = "";
 }
@@ -389,9 +397,12 @@ function closeOrderClosedPopup() {
 // 주문 폼 초기화
 function resetForm() {
     document.getElementById("name").value = "";
+
     selectedDrink = "";
     selectedPrice = 0;
+
     document.getElementById("selectedDrink").value = "";
+
     quantity = 1;
     document.getElementById("quantity").value = 1;
 
@@ -402,32 +413,25 @@ function resetForm() {
     pendingOrder = null;
 }
 
-// 주문 내역 저장 (날짜 정보 포함)
+// 주문 내역 저장
 function saveOrders() {
     try {
-        const today = new Date().toISOString().slice(0, 10);
-        localStorage.setItem("coffee_fruit_cheong_orders", JSON.stringify(orders));
-        localStorage.setItem("coffee_fruit_cheong_date", today);
+        localStorage.setItem(
+            "coffee_fruit_cheong_orders",
+            JSON.stringify(orders)
+        );
     } catch (e) {
         console.error("주문 내역 저장 오류:", e);
     }
 }
 
-// 주문 내역 불러오기 (날짜 변경 검사 수행)
+// 주문 내역 불러오기
 function loadOrders() {
     try {
-        const today = new Date().toISOString().slice(0, 10);
-        const lastSavedDate = localStorage.getItem("coffee_fruit_cheong_date");
+        const saved = localStorage.getItem(
+            "coffee_fruit_cheong_orders"
+        );
 
-        // 날짜가 바뀌었으면 기존 주문 삭제
-        if (lastSavedDate !== today) {
-            localStorage.removeItem("coffee_fruit_cheong_orders");
-            localStorage.setItem("coffee_fruit_cheong_date", today);
-            orders = [];
-            return;
-        }
-
-        const saved = localStorage.getItem("coffee_fruit_cheong_orders");
         if (saved) {
             orders = JSON.parse(saved);
         }
@@ -441,11 +445,16 @@ function renderOrders() {
     const list = document.getElementById("orderList");
     const count = document.getElementById("orderCount");
 
-    const totalQty = orders.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    const totalQty = orders.reduce(
+        (sum, item) => sum + Number(item.quantity || 0),
+        0
+    );
+
     count.textContent = `총 ${totalQty}잔 주문`;
 
     if (orders.length === 0) {
-        list.innerHTML = `<div class="empty">아직 등록된 주문이 없습니다.</div>`;
+        list.innerHTML =
+            `<div class="empty">아직 등록된 주문이 없습니다.</div>`;
         return;
     }
 
@@ -453,18 +462,27 @@ function renderOrders() {
 
     orders.forEach((order, index) => {
         const item = document.createElement("div");
+
         item.className = "order-item";
 
         item.innerHTML = `
             <div class="order-info">
                 <div class="order-number">${index + 1}</div>
                 <div>
-                    <div class="order-name">${escapeHtml(order.name)}</div>
-                    <div class="order-drink">${escapeHtml(order.drink)} × ${order.quantity}</div>
-                    <div class="order-total">${Number(order.total).toLocaleString()}원</div>
+                    <div class="order-name">
+                        ${escapeHtml(order.name)}
+                    </div>
+                    <div class="order-drink">
+                        ${escapeHtml(order.drink)} × ${order.quantity}
+                    </div>
+                    <div class="order-total">
+                        ${Number(order.total).toLocaleString()}원
+                    </div>
                 </div>
             </div>
-            <div class="order-time">${escapeHtml(order.time || "")}</div>
+            <div class="order-time">
+                ${escapeHtml(order.time || "")}
+            </div>
         `;
 
         list.appendChild(item);
@@ -474,17 +492,25 @@ function renderOrders() {
 // 성공 메시지
 function showSuccess(msg) {
     const el = document.getElementById("success");
+
     el.textContent = msg;
     el.style.display = "block";
-    setTimeout(() => { el.style.display = "none"; }, 5000);
+
+    setTimeout(() => {
+        el.style.display = "none";
+    }, 5000);
 }
 
 // 오류 메시지
 function showError(msg) {
     const el = document.getElementById("error");
+
     el.textContent = msg;
     el.style.display = "block";
-    setTimeout(() => { el.style.display = "none"; }, 5000);
+
+    setTimeout(() => {
+        el.style.display = "none";
+    }, 5000);
 }
 
 // 메시지 숨기기
@@ -496,7 +522,9 @@ function hideMessage() {
 // HTML 특수문자 처리
 function escapeHtml(text) {
     const div = document.createElement("div");
+
     div.textContent = String(text ?? "");
+
     return div.innerHTML;
 }
 
@@ -508,5 +536,34 @@ document.addEventListener("keydown", function(e) {
     }
 });
 </script>
+
+<!-- 구글시트 저장 실패 시 표시되는 팝업 -->
+<div id="orderClosedModal"
+     class="modal"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="closedModalTitle">
+
+    <div class="modal-content">
+
+        <h2 id="closedModalTitle" class="modal-title">
+            주문 마감
+        </h2>
+
+        <p class="modal-subtitle">
+            현재 주문을 접수할 수 없습니다.<br>
+            잠시 후 다시 시도해 주세요.
+        </p>
+
+        <div class="modal-actions">
+            <button type="button"
+                    class="confirm-button"
+                    onclick="closeOrderClosedPopup()">
+                확인
+            </button>
+        </div>
+
+    </div>
+</div>
 </body>
 </html>
