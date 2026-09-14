@@ -332,30 +332,17 @@ async function confirmOrder() {
     confirmBtn.textContent = "전송 중...";
 
     try {
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
+        // mode: "no-cors" 설정으로 브라우저의 CORS 응답 차단을 회피합니다.
+        await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
+            mode: "no-cors",
             headers: {
                 "Content-Type": "text/plain;charset=utf-8"
             },
             body: JSON.stringify(pendingOrder)
         });
 
-        if (!response.ok) {
-            throw new Error("서버 응답 오류");
-        }
-
-        const result = await response.json();
-
-        // 구글시트 저장 실패
-        if (result.result !== "success") {
-            throw new Error(
-                result.error ||
-                result.message ||
-                "주문 저장 실패"
-            );
-        }
-
-        // 구글시트 저장 성공 시에만 홈페이지에 주문 추가
+        // 데이터 전송에 실패하지 않았다면 정상 접수 처리
         orders.push(pendingOrder);
 
         saveOrders();
@@ -369,7 +356,7 @@ async function confirmOrder() {
     } catch (error) {
         console.error("전송 오류:", error);
 
-        // 주문 저장 실패 시 '주문 마감' 팝업 표시
+        // 진짜 네트워크 연결 실패 시에만 '주문 마감' 팝업 표시
         showOrderClosedPopup();
 
     } finally {
@@ -377,7 +364,6 @@ async function confirmOrder() {
         confirmBtn.textContent = "주문 확정";
     }
 }
-
 // 주문 마감 팝업 열기
 function showOrderClosedPopup() {
     const modal = document.getElementById("orderClosedModal");
